@@ -1,20 +1,15 @@
 [package]
-name = "lamella"
+name = "lamella-client"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-ureq = "2.4.0"
-rocket = "0.5.0-rc.2"
 clap = { version = "3.2.8", features = ["derive"] }
+ureq
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [[bin]]
 name = "lamella-client"
-path = "src/client/main.rs"
-
-[[bin]]
-name = "lamella-server"
-path = "src/server/main.rs"
+path = "src/main.rs"
 
