@@ -1,0 +1,31 @@
+# Lamella
+
+ - Monitoring (possibly some kind of display?)
+    - Air moisture
+    - Soil moisture
+    - Temperature
+
+ - Control
+    - Temperature
+    - Moisture, through wetting O_O
+    - Automatic light control
+    - Automatic moisture control based on level
+
+deployment of the server app using ansible, with seamless transitions on merge to master
+
+comm protocol - http (mayyyybe own protocol)
+own webserver
+
+some kind of security - possibly generated JWT tokens
+
+use some kind of database (possibly SQLite?)
+
+## Hardware
+- computer
+- sensors
+  - humidity
+  - temperature
+  - soil humidity
+- light
+- (some kind of heat pad)
+- webcam
