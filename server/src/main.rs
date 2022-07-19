@@ -1,7 +1,9 @@
 use std::io;
 use std::io::Read;
 use std::net::{TcpStream, TcpListener};
-use std::thread;
+
+pub mod threadpool;
+use threadpool::Threadpool;
 
 extern crate httparse;
 use httparse::{EMPTY_HEADER, Request, Header};
@@ -29,12 +31,15 @@ fn handle_client(stream: &mut TcpStream) {
 }
 
 fn main() -> Result<(), io::Error> {
+    let pool = Threadpool::new(4);
 
     let listener = TcpListener::bind("127.0.0.1:8000").unwrap();
 
     loop {
         let (mut stream, _addr) = listener.accept().unwrap();
-        thread::spawn(move || handle_client(&mut stream));
+        let f = Box::new(move || handle_client(&mut stream));
+
+        pool.task_queue.append(f);
     }
 
     Ok(())
