@@ -9,6 +9,8 @@ pub struct ConcurrentQueue <T> {
     cvar: Arc<(Mutex<bool>, Condvar)>
 }
 
+type Task = dyn FnOnce() -> () + Send;
+
 impl<T> ConcurrentQueue<T> {
     pub fn new() -> ConcurrentQueue<T> {
         let cvar = Arc::new((Mutex::new(false), Condvar::new()));
@@ -51,8 +53,7 @@ impl<T> ConcurrentQueue<T> {
     }
 }
 
-
-fn worker_function(task_queue: Arc<ConcurrentQueue<Box<dyn FnOnce() -> () + Send>>>)
+fn worker_function(task_queue: Arc<ConcurrentQueue<Box<Task>>>)
 {
     loop {
         let task = task_queue.wait_pop();
@@ -62,14 +63,14 @@ fn worker_function(task_queue: Arc<ConcurrentQueue<Box<dyn FnOnce() -> () + Send
 
 pub struct Threadpool
 {
-    pub task_queue: Arc<ConcurrentQueue<Box<dyn FnOnce() -> () + Send>>>,
+    pub task_queue: Arc<ConcurrentQueue<Box<Task>>>,
     workers: Vec<JoinHandle<()>>,
 }
 
 impl Threadpool
 {
     pub fn new(n: u8) -> Threadpool {
-        let task_queue: Arc<ConcurrentQueue<Box<dyn FnOnce() -> () + Send>>> = Arc::new(ConcurrentQueue::new());
+        let task_queue: Arc<ConcurrentQueue<Box<Task>>> = Arc::new(ConcurrentQueue::new());
         let mut workers = Vec::new();
 
         for _ in 0..n {
@@ -77,7 +78,6 @@ impl Threadpool
             let handle = spawn(|| worker_function(queue_clone_ptr));
             workers.push(handle);
         }
-
         return Threadpool { task_queue,  workers }
     }
 }
