@@ -35,6 +35,11 @@ impl ResponseBuilder {
         a
     }
 
+    pub fn bad_request() -> ResponseBuilder {
+        ResponseBuilder::new()
+            .status_code(400)
+    }
+
     pub fn build(&mut self) -> Vec<u8> {
         let mut response = String::new();
         response.push_str("HTTP/1.1 ");

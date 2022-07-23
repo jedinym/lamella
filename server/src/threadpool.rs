@@ -1,15 +1,12 @@
-use std::fmt::Debug;
+use std::net::TcpStream;
 use std::sync::{Mutex, Arc, Condvar};
 use std::collections::VecDeque;
 use std::thread::{JoinHandle, spawn};
 
-#[derive(Debug)]
 pub struct ConcurrentQueue <T> {
     queue_mtx: Mutex<VecDeque<T>>,
     cvar: Arc<(Mutex<bool>, Condvar)>
 }
-
-type Task = dyn FnOnce() -> () + Send;
 
 impl<T> ConcurrentQueue<T> {
     pub fn new() -> ConcurrentQueue<T> {
@@ -53,31 +50,61 @@ impl<T> ConcurrentQueue<T> {
     }
 }
 
-fn worker_function(task_queue: Arc<ConcurrentQueue<Box<Task>>>)
-{
-    loop {
-        let task = task_queue.wait_pop();
-        task();
+pub trait Execute: Send + 'static {
+    fn execute(&mut self) -> ();
+}
+
+pub struct TcpTask {
+    handler: fn(&mut TcpStream) -> (),
+    stream: TcpStream
+}
+
+impl TcpTask {
+    pub fn new(handler: fn(&mut TcpStream), stream: TcpStream) -> TcpTask {
+        TcpTask { handler, stream }
     }
 }
 
-pub struct Threadpool
-{
-    pub task_queue: Arc<ConcurrentQueue<Box<Task>>>,
-    workers: Vec<JoinHandle<()>>,
+impl Execute for TcpTask {
+    fn execute(&mut self) {
+        (self.handler)(&mut self.stream);
+    }
 }
 
-impl Threadpool
+
+pub struct Threadpool<T>
+where T: Execute
 {
-    pub fn new(n: u8) -> Threadpool {
-        let task_queue: Arc<ConcurrentQueue<Box<Task>>> = Arc::new(ConcurrentQueue::new());
-        let mut workers = Vec::new();
+    task_queue: Arc<ConcurrentQueue<T>>,
+}
+
+impl<T> Threadpool<T>
+where T: Execute
+{
+    pub fn new(n: u8) -> Threadpool<T> {
+        let task_queue: Arc<ConcurrentQueue<T>> = Arc::new(ConcurrentQueue::new());
 
         for _ in 0..n {
-            let queue_clone_ptr = task_queue.clone();
-            let handle = spawn(|| worker_function(queue_clone_ptr));
-            workers.push(handle);
+            Self::make_thread(task_queue.clone());
         }
-        return Threadpool { task_queue,  workers }
+
+        return Threadpool { task_queue }
+    }
+
+    fn make_thread(task_queue: Arc<ConcurrentQueue<T>>) -> JoinHandle<()> {
+            let queue_clone_ptr = task_queue.clone();
+            spawn(move || Self::worker_function(queue_clone_ptr))
+    }
+
+    fn worker_function(task_queue: Arc<ConcurrentQueue<T>>)
+    {
+        loop {
+            let mut task = task_queue.wait_pop();
+            task.execute();
+        }
+    }
+
+    pub fn add_task(&mut self, task: T) {
+        self.task_queue.append(task);
     }
 }

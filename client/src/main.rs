@@ -24,7 +24,7 @@ enum Commands {
 
 
 fn main() -> Result<(), ureq::Error> {
-    let args = Args::parse();
+    let _args = Args::parse();
 
     let res = ureq::get(ROOT)
         .call()
