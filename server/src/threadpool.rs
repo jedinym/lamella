@@ -72,8 +72,7 @@ impl Execute for TcpTask {
 }
 
 
-pub struct Threadpool<T>
-where T: Execute
+pub struct Threadpool<T: Execute>
 {
     task_queue: Arc<ConcurrentQueue<T>>,
 }

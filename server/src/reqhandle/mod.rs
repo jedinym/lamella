@@ -8,19 +8,23 @@ use httparse::{Request, Header, EMPTY_HEADER};
 
 use log::{info, error};
 
+pub mod controllers;
+
 enum RequestError {
     UnknownRoute,
-    WrongMethod
+    WrongMethod,
 }
 
+enum Operation {
+    SetTargetHumidity(u8),
+    CreateFile(String),
+}
 
 fn handle_request(_req: &Request) -> Response {
-    let test = ResponseBuilder::success()
-        .body("BODYYY!".to_owned()).build();
+    let test = ResponseBuilder::success();
 
     test
 }
-
 
 fn parse_request<'a>(
     stream: &'a mut TcpStream,
@@ -35,19 +39,16 @@ fn parse_request<'a>(
     Ok(request)
 }
 
-
 fn send_response(stream: &mut TcpStream, response_bytes: Vec<u8>) {
     stream.write(&response_bytes).unwrap();
     stream.flush().unwrap();
 }
-
 
 fn log_request(req: &Request, response: &Response) {
     let method = &req.method.unwrap();
     let path = &req.path.unwrap();
     info!{"{} - {} - {}", method, path, response.status_code};
 }
-
 
 pub fn handle_client(stream: &mut TcpStream) {
     let mut buf = vec![0; 1024];
@@ -63,6 +64,7 @@ pub fn handle_client(stream: &mut TcpStream) {
             response_bytes
         }
         Ok(request) => {
+            println!("{:?}", request);
             let response = handle_request(&request);
             log_request(&request, &response);
             let response_bytes = response.bytes();
