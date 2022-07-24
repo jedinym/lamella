@@ -1,26 +1,30 @@
+mod threadpool;
+mod response;
+mod reqhandle;
+
+extern crate simple_logger;
+
 use std::net::TcpListener;
 
-mod threadpool;
 use threadpool::TcpTask;
 use threadpool::Threadpool;
 
-mod response;
-mod reqhandle;
-use reqhandle::{handle_client};
-
-extern crate simple_logger;
-extern crate log;
+use reqhandle::handle_client;
 
 use simple_logger::SimpleLogger;
-use log::{info, warn, error};
 
 
 fn main() {
     SimpleLogger::new().env().init().unwrap();
 
-    let mut pool = Threadpool::new(4);
+    let n_workers = 4;
+    let mut pool = Threadpool::new(n_workers);
+    let addr = "0.0.0.0";
+    let port = "8000";
 
-    let listener = TcpListener::bind("127.0.0.1:8000").unwrap();
+    let listener = TcpListener::bind(format!("{}:{}", addr, port)).unwrap();
+    println!("Server listening at {}:{}", addr, port);
+    println!("Workers running: {}", n_workers);
 
     loop {
         let (stream, _addr) = listener.accept().unwrap();
