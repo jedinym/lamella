@@ -21,8 +21,7 @@ enum Operation {
 }
 
 fn handle_request(_req: &Request) -> Response {
-    let test = ResponseBuilder::success();
-
+    let test = ResponseBuilder::success().build();
     test
 }
 
