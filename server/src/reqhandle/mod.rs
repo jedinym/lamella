@@ -49,10 +49,10 @@ fn log_request(req: &Request, response: &Response) {
     info!{"{} - {} - {}", method, path, response.status_code};
 }
 
-pub fn handle_client(stream: &mut TcpStream) {
+pub fn handle_client(mut stream: TcpStream) {
     let mut buf = vec![0; 1024];
     let mut headers = [EMPTY_HEADER; 64];
-    let request_result = parse_request(stream, &mut headers, &mut buf);
+    let request_result = parse_request(&mut stream, &mut headers, &mut buf);
 
     let response = match request_result {
         Err(errmsg) => {
@@ -71,5 +71,5 @@ pub fn handle_client(stream: &mut TcpStream) {
         }
     };
 
-    send_response(stream, response)
+    send_response(&mut stream, response)
 }

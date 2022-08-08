@@ -1,109 +1,83 @@
 use std::net::TcpStream;
-use std::sync::{Mutex, Arc, Condvar};
-use std::collections::VecDeque;
+use std::sync::{Mutex, Arc};
 use std::thread::{JoinHandle, spawn};
+use std::sync::mpsc::{Sender, Receiver, channel, SendError};
 
-pub struct ConcurrentQueue <T> {
-    queue_mtx: Mutex<VecDeque<T>>,
-    cvar: Arc<(Mutex<bool>, Condvar)>
+pub struct Job {
+    stream: TcpStream,
+    func: fn(TcpStream)
 }
 
-impl<T> ConcurrentQueue<T> {
-    pub fn new() -> ConcurrentQueue<T> {
-        let cvar = Arc::new((Mutex::new(false), Condvar::new()));
-        ConcurrentQueue { queue_mtx: Mutex::new(VecDeque::new()), cvar}
-    }
-
-    pub fn pop(&self) -> Option<T> {
-        let mut queue = self.queue_mtx.lock().unwrap();
-
-        queue.pop_front()
-    }
-
-    pub fn append(&self, val: T) {
-        let mut queue = self.queue_mtx.lock().unwrap();
-        queue.push_back(val);
-
-        // notify threads that new values are available
-        let (lock, cvar) = &*self.cvar;
-        let mut ready = lock.lock().unwrap();
-        *ready = true;
-        cvar.notify_one();
-    }
-
-    pub fn wait_pop(&self) -> T {
-        let (cvar_lock, cvar) = &*self.cvar;
-        let mut ready = cvar_lock.lock().unwrap();
-
-        // wait until queue has items to pop
-        while ! *ready {
-            ready = cvar.wait(ready).unwrap();
-        }
-
-        let val = self.pop().unwrap();
-
-        if self.queue_mtx.lock().unwrap().is_empty() {
-            *ready = false;
-        }
-
-        val
+impl Job {
+    pub fn new(stream: TcpStream, func: fn(TcpStream)) -> Job {
+        Job { stream, func }
     }
 }
 
-pub trait Execute: Send + 'static {
-    fn execute(&mut self) -> ();
+pub enum Message {
+    NewJob(Job),
+    Exit,
 }
 
-pub struct TcpTask {
-    handler: fn(&mut TcpStream) -> (),
-    stream: TcpStream
+struct Worker {
+    receive_queue: Arc<Mutex<Receiver<Message>>>,
 }
 
-impl TcpTask {
-    pub fn new(handler: fn(&mut TcpStream), stream: TcpStream) -> TcpTask {
-        TcpTask { handler, stream }
-    }
-}
-
-impl Execute for TcpTask {
-    fn execute(&mut self) {
-        (self.handler)(&mut self.stream);
-    }
-}
-
-
-pub struct Threadpool<T: Execute>
-{
-    task_queue: Arc<ConcurrentQueue<T>>,
-}
-
-impl<T> Threadpool<T>
-where T: Execute
-{
-    pub fn new(n: u8) -> Threadpool<T> {
-        let task_queue: Arc<ConcurrentQueue<T>> = Arc::new(ConcurrentQueue::new());
-
-        for _ in 0..n {
-            Self::make_thread(task_queue.clone());
-        }
-
-        return Threadpool { task_queue }
+impl Worker {
+    pub fn new(receive_queue: Arc<Mutex<Receiver<Message>>>) -> JoinHandle<()> {
+        let mut worker = Worker { receive_queue: receive_queue.clone() };
+        spawn(move || {
+            worker.worker_function()
+        })
     }
 
-    fn make_thread(task_queue: Arc<ConcurrentQueue<T>>) -> JoinHandle<()> {
-            let queue_clone_ptr = task_queue.clone();
-            spawn(move || Self::worker_function(queue_clone_ptr))
-    }
-
-    fn worker_function(task_queue: Arc<ConcurrentQueue<T>>)
-    {
+    fn worker_function(&mut self) {
         loop {
-            let mut task = task_queue.wait_pop();
-            task.execute();
+            let queue = self.receive_queue.lock().unwrap();
+            let msg = queue.recv().unwrap();
+            match msg {
+                Message::Exit => return,
+                Message::NewJob(job) => (job.func)(job.stream)
+            }
         }
     }
+}
 
-    pub fn add_task(&mut self, task: T) {
-        self.task_queue.append(task);
+pub struct Threadpool {
+    n_threads: usize,
+    handles: Vec<JoinHandle<()>>,
+    sender: Sender<Message>
+}
+
+impl Threadpool {
+    pub fn new(n_threads: usize) -> Threadpool {
+        assert!(n_threads <= 16);
+
+        let mut handles = Vec::with_capacity(n_threads);
+        let (sender, receiver) = channel();
+        let locked_rcvr = Arc::new(Mutex::new(receiver));
+
+        for _ in 0..n_threads {
+            let handle = Worker::new(locked_rcvr.clone());
+            handles.push(handle);
+        }
+
+        Threadpool { n_threads, handles, sender }
+    }
+
+    pub fn add_task(&mut self, msg: Message) -> Result<(), SendError<Message>> {
+        self.sender.send(msg)
+    }
+
+    pub fn exit(&mut self) -> Result<(), SendError<Message>> {
+        for _ in 0..self.n_threads {
+            self.add_task(Message::Exit)?;
+        }
+
+        while !self.handles.is_empty() {
+            self.handles.remove(0).join().expect("Couldn't join thread");
+        }
+
+        Ok(())
     }
 }
