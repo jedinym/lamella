@@ -36,8 +36,8 @@ impl Worker {
             let queue = self.receive_queue.lock().unwrap();
             let msg = queue.recv().unwrap();
             match msg {
+                Message::NewJob(job) => (job.func)(job.stream),
                 Message::Exit => return,
-                Message::NewJob(job) => (job.func)(job.stream)
             }
         }
     }
