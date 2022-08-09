@@ -8,7 +8,6 @@ use httparse::{Request, Header, EMPTY_HEADER};
 
 use log::{info, error};
 
-pub mod controllers;
 
 enum RequestError {
     UnknownRoute,
