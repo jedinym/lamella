@@ -1,4 +1,3 @@
-mod threadpool;
 mod response;
 mod reqhandle;
 
@@ -12,7 +11,7 @@ use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 use std::thread::spawn;
 
 use log::{info, error};
-use threadpool::{Threadpool, Message, Job};
+use threadpool::{Threadpool, Execute};
 
 use reqhandle::handle_client;
 
@@ -32,6 +31,18 @@ fn listener_func(listener: TcpListener, sender: Sender<TcpStream>) {
         sender.send(stream);
     }
 }
+
+struct TcpTask {
+    stream: TcpStream,
+    handler: fn(TcpStream) -> ()
+}
+
+impl Execute for TcpTask {
+    fn execute(self) {
+        (self.handler)(self.stream);
+    }
+}
+
 
 fn main() {
     SimpleLogger::new().env().init().unwrap();
@@ -62,10 +73,12 @@ fn main() {
 
         match receiver.try_recv() {
             Ok(stream) => {
-                let job = Job::new(stream, handle_client);
-                let msg = Message::NewJob(job);
+                let task = TcpTask { stream, handler: handle_client};
 
-                pool.add_task(msg);
+                match pool.add_task(task) {
+                    Err(err) => error!("Error adding task to threadpool: {:?}", err),
+                    Ok(_) => ()
+                }
             },
             Err(TryRecvError::Empty) => (),
             Err(_) => error!("Error while sending a stream!"),
