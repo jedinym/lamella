@@ -8,18 +8,10 @@ use httparse::{Request, Header, EMPTY_HEADER};
 
 use log::{info, error};
 
+pub mod route;
 
-enum RequestError {
-    UnknownRoute,
-    WrongMethod,
-}
 
-enum Operation {
-    SetTargetHumidity(u8),
-    CreateFile(String),
-}
-
-fn handle_request(_req: &Request) -> Response {
+fn handle_request(req: &Request) -> Response {
     let test = ResponseBuilder::success().build();
     test
 }
