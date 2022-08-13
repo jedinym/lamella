@@ -4,9 +4,7 @@ use std::sync::mpsc::{Sender, Receiver, channel};
 use std::panic::{catch_unwind, UnwindSafe};
 
 pub trait Execute: Send + UnwindSafe + 'static {
-    type Item: Send;
-
-    fn execute(self) -> Self::Item;
+    fn execute(self);
 }
 
 enum WorkerMessage<T: Execute> {
@@ -16,12 +14,11 @@ enum WorkerMessage<T: Execute> {
 
 struct Worker<T: Execute> {
     receive_queue: Arc<Mutex<Receiver<WorkerMessage<T>>>>,
-    sender: Sender<T::Item>
 }
 
 impl<T: Execute> Worker<T> {
-    pub fn new(receive_queue: Arc<Mutex<Receiver<WorkerMessage<T>>>>, sender: Sender<T::Item>) -> JoinHandle<()> {
-        let mut worker = Worker { receive_queue: receive_queue.clone() , sender };
+    pub fn new(receive_queue: Arc<Mutex<Receiver<WorkerMessage<T>>>>) -> JoinHandle<()> {
+        let mut worker = Worker { receive_queue: receive_queue.clone()};
         spawn(move || {
             worker.worker_function()
         })
@@ -34,8 +31,7 @@ impl<T: Execute> Worker<T> {
 
             match msg_result {
                 Ok(WorkerMessage::NewJob(job)) => {
-                    self.sender.send(job.execute());
-                    //catch_unwind(move || job.execute()) TODO:
+                    catch_unwind(move || job.execute());
                 },
                 _ => return
             };
@@ -53,7 +49,6 @@ pub struct Threadpool<T: Execute> {
     n_threads: usize,
     handles: Vec<JoinHandle<()>>,
     worker_queue_sender: Sender<WorkerMessage<T>>,
-    worker_result_receiver: Receiver<T::Item>
 }
 
 impl<T: Execute> Threadpool<T> {
@@ -64,14 +59,12 @@ impl<T: Execute> Threadpool<T> {
         let (sender, receiver) = channel();
         let locked_rcvr = Arc::new(Mutex::new(receiver));
 
-        let (result_sender, result_receiver) = channel();
-
         for _ in 0..n_threads {
-            let handle = Worker::new(locked_rcvr.clone(), result_sender.clone());
+            let handle = Worker::new(locked_rcvr.clone());
             handles.push(handle);
         }
 
-        Threadpool { n_threads, handles, worker_queue_sender: sender , worker_result_receiver: result_receiver }
+        Threadpool { n_threads, handles, worker_queue_sender: sender }
     }
 
     pub fn add_task(&self, job: T) -> Result<(), ThreadPoolError> {
@@ -80,17 +73,6 @@ impl<T: Execute> Threadpool<T> {
             Ok(_) => Ok(()),
             Err(_) => Err(ThreadPoolError::AddTaskError),
         }
-    }
-
-    pub fn get_result(&self) -> Option<T::Item> {
-        match self.worker_result_receiver.try_recv() {
-            Ok(result) => Some(result),
-            Err(_) => None,
-        }
-    }
-
-    pub fn get_result_blocking(&self) -> T::Item {
-        self.worker_result_receiver.recv().expect("Couldn't receive result")
     }
 
     pub fn exit(&mut self) -> Result<(), ThreadPoolError> {
