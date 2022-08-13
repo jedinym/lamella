@@ -2,6 +2,7 @@ use std::io::{Read, Write};
 use std::net::TcpStream;
 
 use crate::response::{ResponseBuilder, Response};
+use crate::operator::LockOperator;
 
 extern crate httparse;
 use httparse::{Request, Header, EMPTY_HEADER};
@@ -40,7 +41,7 @@ fn log_request(req: &Request, response: &Response) {
     info!{"{} - {} - {}", method, path, response.status_code};
 }
 
-pub fn handle_client(mut stream: TcpStream) {
+pub fn handle_client(mut stream: TcpStream, operator: LockOperator) {
     let mut buf = vec![0; 1024];
     let mut headers = [EMPTY_HEADER; 64];
     let request_result = parse_request(&mut stream, &mut headers, &mut buf);
