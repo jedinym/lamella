@@ -9,12 +9,14 @@ use httparse::{Request, Header, EMPTY_HEADER};
 
 use log::{info, error};
 
-pub mod route;
 
+fn handle_request(req: &Request, operator: LockOperator) -> Response {
+    let body = operator.lock().unwrap().dispatch(req).unwrap();
+    let response = ResponseBuilder::success()
+        .body(body)
+        .build();
 
-fn handle_request(req: &Request) -> Response {
-    let test = ResponseBuilder::success().build();
-    test
+    response
 }
 
 fn parse_request<'a>(
@@ -56,7 +58,7 @@ pub fn handle_client(mut stream: TcpStream, operator: LockOperator) {
         }
         Ok(request) => {
             println!("{:?}", request);
-            let response = handle_request(&request);
+            let response = handle_request(&request, operator);
             log_request(&request, &response);
             let response_bytes = response.bytes();
             response_bytes

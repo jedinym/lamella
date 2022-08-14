@@ -70,7 +70,6 @@ impl ResponseBuilder {
 
     pub fn body(mut self, bytes: String) -> ResponseBuilder {
         self.response.body = bytes;
-        self.response.headers.push(Header { name: "Content-Length".to_owned(), value: self.response.body.len().to_string() });
         self
     }
 
