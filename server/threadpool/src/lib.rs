@@ -1,7 +1,7 @@
-use std::sync::{Mutex, Arc};
-use std::thread::{JoinHandle, spawn};
-use std::sync::mpsc::{Sender, Receiver, channel};
 use std::panic::{catch_unwind, UnwindSafe};
+use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::{Arc, Mutex};
+use std::thread::{spawn, JoinHandle};
 
 pub trait Execute: Send + UnwindSafe + 'static {
     fn execute(self);
@@ -18,10 +18,10 @@ struct Worker<T: Execute> {
 
 impl<T: Execute> Worker<T> {
     pub fn new(receive_queue: Arc<Mutex<Receiver<WorkerMessage<T>>>>) -> JoinHandle<()> {
-        let mut worker = Worker { receive_queue: receive_queue.clone()};
-        spawn(move || {
-            worker.worker_function()
-        })
+        let mut worker = Worker {
+            receive_queue: receive_queue.clone(),
+        };
+        spawn(move || worker.worker_function())
     }
 
     fn worker_function(&mut self) {
@@ -32,14 +32,14 @@ impl<T: Execute> Worker<T> {
             match msg_result {
                 Ok(WorkerMessage::NewJob(job)) => {
                     catch_unwind(move || job.execute());
-                },
-                _ => return
+                }
+                _ => return,
             };
         }
     }
 }
 
-#[derive (Debug)]
+#[derive(Debug)]
 pub enum ThreadPoolError {
     AddTaskError,
     ExitError,
@@ -64,7 +64,11 @@ impl<T: Execute> Threadpool<T> {
             handles.push(handle);
         }
 
-        Threadpool { n_threads, handles, worker_queue_sender: sender }
+        Threadpool {
+            n_threads,
+            handles,
+            worker_queue_sender: sender,
+        }
     }
 
     pub fn add_task(&self, job: T) -> Result<(), ThreadPoolError> {

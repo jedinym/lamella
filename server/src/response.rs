@@ -1,4 +1,3 @@
-
 pub struct Header {
     pub name: String,
     pub value: String,
@@ -6,31 +5,32 @@ pub struct Header {
 
 impl Clone for Header {
     fn clone(&self) -> Header {
-        Header {name: self.name.clone(), value: self.value.clone()}
+        Header {
+            name: self.name.clone(),
+            value: self.value.clone(),
+        }
     }
 }
 
 pub struct Response {
     pub status_code: u16,
     pub headers: Vec<Header>,
-    pub body: String
+    pub body: String,
 }
-
 
 impl Clone for Response {
     fn clone(&self) -> Response {
         Response {
             status_code: self.status_code,
             headers: self.headers.clone(),
-            body: self.body.clone()
+            body: self.body.clone(),
         }
     }
 }
 
 pub struct ResponseBuilder {
-    response: Response
+    response: Response,
 }
-
 
 impl Response {
     pub fn bytes(&self) -> Vec<u8> {
@@ -54,7 +54,11 @@ impl Response {
 
 impl ResponseBuilder {
     pub fn new() -> ResponseBuilder {
-        let response = Response { status_code: 200, headers: Vec::new(), body: String::new() };
+        let response = Response {
+            status_code: 200,
+            headers: Vec::new(),
+            body: String::new(),
+        };
         ResponseBuilder { response }
     }
 
@@ -79,8 +83,7 @@ impl ResponseBuilder {
     }
 
     pub fn bad_request() -> ResponseBuilder {
-        ResponseBuilder::new()
-            .status_code(400)
+        ResponseBuilder::new().status_code(400)
     }
 
     pub fn build(&mut self) -> Response {
