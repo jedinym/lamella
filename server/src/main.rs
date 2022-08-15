@@ -1,20 +1,23 @@
-mod response;
-mod reqhandle;
 mod operator;
+mod reqhandle;
+mod response;
 
-extern crate simple_logger;
 extern crate ctrlc;
+extern crate simple_logger;
 
 use std::net::{TcpListener, TcpStream};
+use std::sync::mpsc::{channel, Sender, TryRecvError};
 use std::sync::Mutex;
-use std::sync::mpsc::{channel, TryRecvError, Sender};
-use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 
 use std::thread::spawn;
 
-use log::{info, error};
-use operator::{Operator, LockOperator};
-use threadpool::{Threadpool, Execute};
+use log::{error, info};
+use operator::{LockOperator, Operator};
+use threadpool::{Execute, Threadpool};
 
 use reqhandle::handle_client;
 
@@ -24,7 +27,8 @@ fn set_ctrlc_handler(should_exit: Arc<AtomicBool>) {
     ctrlc::set_handler(move || {
         info!("Attempting graceful shutdown");
         should_exit.store(true, Ordering::Relaxed);
-    }).expect("Couldn't set interrupt handler");
+    })
+    .expect("Couldn't set interrupt handler");
 }
 
 fn listener_func(listener: TcpListener, sender: Sender<TcpStream>) {
@@ -47,7 +51,6 @@ impl Execute for TcpTask {
     }
 }
 
-
 fn main() {
     SimpleLogger::new().env().init().unwrap();
 
@@ -59,8 +62,8 @@ fn main() {
     let should_exit = Arc::new(AtomicBool::new(false));
     set_ctrlc_handler(should_exit.clone());
 
-    let listener = TcpListener::bind(format!("{}:{}", addr, port))
-        .expect("Could not create TCP listener");
+    let listener =
+        TcpListener::bind(format!("{}:{}", addr, port)).expect("Could not create TCP listener");
 
     let (sender, receiver) = channel();
     let _listener_handle = spawn(move || listener_func(listener, sender));
@@ -83,13 +86,17 @@ fn main() {
 
         match receiver.try_recv() {
             Ok(stream) => {
-                let task = TcpTask { stream, handler: handle_client, operator: operator.clone() };
+                let task = TcpTask {
+                    stream,
+                    handler: handle_client,
+                    operator: operator.clone(),
+                };
 
                 match pool.add_task(task) {
                     Err(err) => error!("Error adding task to threadpool: {:?}", err),
-                    Ok(_) => ()
+                    Ok(_) => (),
                 }
-            },
+            }
             Err(TryRecvError::Empty) => (),
             Err(_) => error!("Error while sending a stream!"),
         };

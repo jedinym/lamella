@@ -1,5 +1,5 @@
-mod test;
 mod route;
+mod test;
 
 use std::sync::{Arc, Mutex};
 
@@ -9,7 +9,6 @@ use test::TestOperator;
 use self::route::{Route, RouteError};
 
 pub type LockOperator = Arc<Mutex<Operator>>;
-
 
 pub struct Operator {
     operators: Vec<Box<dyn Route>>,
@@ -21,7 +20,7 @@ impl Operator {
 
         operators.push(Box::new(TestOperator::new()));
 
-        return Operator { operators }
+        return Operator { operators };
     }
 
     pub fn dispatch(&mut self, req: &Request) -> Result<String, RouteError> {
@@ -31,8 +30,8 @@ impl Operator {
                 Err(RouteError::RouteNotMatched) => println!("not matched"),
                 Err(RouteError::MissingParameter(msg)) => {
                     return Err(RouteError::MissingParameter(msg))
-                },
-                Err(_) => ()
+                }
+                Err(_) => (),
             }
         }
 

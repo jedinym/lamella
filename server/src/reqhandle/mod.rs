@@ -1,20 +1,17 @@
 use std::io::{Read, Write};
 use std::net::TcpStream;
 
-use crate::response::{ResponseBuilder, Response};
 use crate::operator::LockOperator;
+use crate::response::{Response, ResponseBuilder};
 
 extern crate httparse;
-use httparse::{Request, Header, EMPTY_HEADER};
+use httparse::{Header, Request, EMPTY_HEADER};
 
-use log::{info, error};
-
+use log::{error, info};
 
 fn handle_request(req: &Request, operator: LockOperator) -> Response {
     let body = operator.lock().unwrap().dispatch(req).unwrap();
-    let response = ResponseBuilder::success()
-        .body(body)
-        .build();
+    let response = ResponseBuilder::success().body(body).build();
 
     response
 }
@@ -22,11 +19,11 @@ fn handle_request(req: &Request, operator: LockOperator) -> Response {
 fn parse_request<'a>(
     stream: &'a mut TcpStream,
     headers: &'a mut [Header<'a>],
-    buf: &'a mut Vec<u8>)
-    -> Result<Request<'a, 'a>, httparse::Error> {
+    buf: &'a mut Vec<u8>,
+) -> Result<Request<'a, 'a>, httparse::Error> {
     let mut request = Request::new(headers);
 
-    stream.read(buf).unwrap();  // TODO: is this secret? is this safe?
+    stream.read(buf).unwrap(); // TODO: is this secret? is this safe?
     let _res = request.parse(buf)?;
 
     Ok(request)
@@ -40,7 +37,7 @@ fn send_response(stream: &mut TcpStream, response_bytes: Vec<u8>) {
 fn log_request(req: &Request, response: &Response) {
     let method = &req.method.unwrap();
     let path = &req.path.unwrap();
-    info!{"{} - {} - {}", method, path, response.status_code};
+    info! {"{} - {} - {}", method, path, response.status_code};
 }
 
 pub fn handle_client(mut stream: TcpStream, operator: LockOperator) {
@@ -53,7 +50,8 @@ pub fn handle_client(mut stream: TcpStream, operator: LockOperator) {
             error!("Could not parse request: {}", errmsg);
             let response_bytes = ResponseBuilder::bad_request()
                 .body(errmsg.to_string())
-                .build().bytes();
+                .build()
+                .bytes();
             response_bytes
         }
         Ok(request) => {

@@ -1,6 +1,6 @@
 use httparse::Request;
 
-#[derive (Debug)]
+#[derive(Debug)]
 pub enum RouteError {
     UnknownRoute,
     RouteNotMatched,

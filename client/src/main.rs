@@ -12,7 +12,7 @@ struct Args {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    Water{
+    Water {
         #[clap(value_parser)]
         water: String,
     },
@@ -22,13 +22,10 @@ enum Commands {
     },
 }
 
-
 fn main() -> Result<(), ureq::Error> {
     let _args = Args::parse();
 
-    let res = ureq::get(ROOT)
-        .call()
-        .expect("Expected this to work");
+    let res = ureq::get(ROOT).call().expect("Expected this to work");
 
     let status = res.status();
     if status == 200 {
