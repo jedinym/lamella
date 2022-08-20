@@ -11,13 +11,24 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
+  build-client:
 
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v3
     - name: Build
-      run: cargo build --verbose
+      run: cargo build --bin lamella-client --verbose
     - name: Run tests
-      run: cargo test --verbose
+      run: cargo test lamella-client --verbose
+
+  build-server:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Build
+      run: cargo build --bin lamella-server --verbose
+    - name: Run tests
+      run: cargo test lamella-server --verbose
